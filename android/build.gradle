@@ -74,4 +74,5 @@ def kotlin_version = getExtOrDefault("kotlinVersion")
 dependencies {
   implementation "com.facebook.react:react-android"
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+  implementation "org.webrtc:google-webrtc:1.0.25821" // pinned; will monitor Chromium/WebRTC security bulletins (e.g., CVE-2023-7024) and update when newer audited releases are available
 }

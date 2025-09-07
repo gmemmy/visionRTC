@@ -7,10 +7,10 @@ import com.facebook.react.module.model.ReactModuleInfo
 import com.facebook.react.module.model.ReactModuleInfoProvider
 import java.util.HashMap
 
-class VisionRtcPackage : BaseReactPackage() {
+class VisionRTCPackage : BaseReactPackage() {
   override fun getModule(name: String, reactContext: ReactApplicationContext): NativeModule? {
-    return if (name == VisionRtcModule.NAME) {
-      VisionRtcModule(reactContext)
+    return if (name == VisionRTCModule.NAME) {
+      VisionRTCModule(reactContext)
     } else {
       null
     }
@@ -19,9 +19,9 @@ class VisionRtcPackage : BaseReactPackage() {
   override fun getReactModuleInfoProvider(): ReactModuleInfoProvider {
     return ReactModuleInfoProvider {
       val moduleInfos: MutableMap<String, ReactModuleInfo> = HashMap()
-      moduleInfos[VisionRtcModule.NAME] = ReactModuleInfo(
-        VisionRtcModule.NAME,
-        VisionRtcModule.NAME,
+      moduleInfos[VisionRTCModule.NAME] = ReactModuleInfo(
+        VisionRTCModule.NAME,
+        VisionRTCModule.NAME,
         false,  // canOverrideExistingModule
         false,  // needsEagerInit
         false,  // isCxxModule

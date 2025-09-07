@@ -13,12 +13,28 @@ npm install react-native-vision-rtc
 ## Usage
 
 
-```js
-import { multiply } from 'react-native-vision-rtc';
+```ts
+import {
+  createVisionCameraSource,
+  createWebRTCTrack,
+  disposeTrack,
+  getStats,
+} from 'react-native-vision-rtc';
 
-// ...
+async function demo(reactTag: number) {
+  const source = await createVisionCameraSource(reactTag);
+  const { trackId } = await createWebRTCTrack(source, {
+    fps: 30,
+    resolution: { width: 1280, height: 720 },
+  });
 
-const result = multiply(3, 7);
+  const stats = (await getStats?.()) ?? null;
+  await disposeTrack(trackId);
+  return stats;
+}
+
+// Example invocation:
+// demo(findNodeHandle(cameraRef));
 ```
 
 

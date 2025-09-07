@@ -2,12 +2,17 @@
   "name": "react-native-vision-rtc",
   "version": "0.1.0",
   "description": "React Native library for streaming Vision Camera, ARKit, OpenCV, or ML frames over WebRTC.",
-  "main": "./lib/module/index.js",
+  "main": "./lib/commonjs/index.js",
+  "react-native": "./lib/module/index.js",
+  "module": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
     ".": {
-      "source": "./src/index.tsx",
       "types": "./lib/typescript/src/index.d.ts",
+      "source": "./src/index.ts",
+      "react-native": "./src/index.ts",
+      "import": "./lib/module/index.js",
+      "require": "./lib/commonjs/index.js",
       "default": "./lib/module/index.js"
     },
     "./package.json": "./package.json"
@@ -38,6 +43,7 @@
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
     "prepare": "bob build",
+    "prepublishOnly": "yarn prepare",
     "release": "release-it --only-version"
   },
   "keywords": [
@@ -126,6 +132,7 @@
   "prettier": {
     "quoteProps": "consistent",
     "singleQuote": true,
+    "bracketSpacing": false,
     "tabWidth": 2,
     "trailingComma": "es5",
     "useTabs": false
@@ -134,6 +141,9 @@
     "source": "src",
     "output": "lib",
     "targets": [
+      [
+        "commonjs"
+      ],
       [
         "module",
         {
@@ -152,6 +162,11 @@
     "name": "VisionRtcSpec",
     "type": "modules",
     "jsSrcsDir": "src",
+    "ios": {
+      "modulesProvider": {
+        "VisionRTC": "VisionRTCTurbo"
+      }
+    },
     "android": {
       "javaPackageName": "com.visionrtc"
     }

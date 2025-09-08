@@ -48,7 +48,8 @@ class VisionRTCModule(reactContext: ReactApplicationContext) : NativeVisionRtcSp
   private data class TrackHandle(
     val source: VideoSource,
     val track: VideoTrack,
-    val capturer: GradientCapturer
+    val cpuCapturer: GradientCapturer?,
+    val glCapturer: GlNullGenerator?
   )
 
   private val tracks: MutableMap<String, TrackHandle> = ConcurrentHashMap()
@@ -70,6 +71,7 @@ class VisionRTCModule(reactContext: ReactApplicationContext) : NativeVisionRtcSp
     var width: Int = 1280
     var height: Int = 720
     var fps: Int = 30
+    val mode: String = if (opts != null && opts.hasKey("mode")) opts.getString("mode") ?: "null-gpu" else "null-gpu"
 
     if (opts != null) {
       if (opts.hasKey("resolution")) {
@@ -98,16 +100,33 @@ class VisionRTCModule(reactContext: ReactApplicationContext) : NativeVisionRtcSp
     val trackId = UUID.randomUUID().toString()
     val track = factory.createVideoTrack(trackId, videoSource)
 
-    val capturer = GradientCapturer(videoSource.capturerObserver, width, height, fps) { deliveredFps ->
-      lastReportedFps = deliveredFps
+    val useGl = mode == "null-gpu"
+    var cpuCap: GradientCapturer? = null
+    var glCap: GlNullGenerator? = null
+    if (useGl) {
+      glCap = GlNullGenerator(eglBase, videoSource.capturerObserver, width, height, fps) { deliveredFps ->
+        lastReportedFps = deliveredFps
+      }
+      glCap.start()
+    } else {
+      cpuCap = GradientCapturer(videoSource.capturerObserver, width, height, fps) { deliveredFps ->
+        lastReportedFps = deliveredFps
+      }
+      cpuCap.start()
     }
-    capturer.start()
 
-    tracks[trackId] = TrackHandle(videoSource, track, capturer)
+    tracks[trackId] = TrackHandle(videoSource, track, cpuCap, glCap)
 
     val result = com.facebook.react.bridge.Arguments.createMap()
     result.putString("trackId", trackId)
     promise.resolve(result)
+  }
+
+  fun eglContext(): EglBase.Context = eglBase.eglBaseContext
+
+  fun findTrack(trackId: String?): TrackHandle? {
+    if (trackId == null) return null
+    return tracks[trackId]
   }
 
   override fun replaceSenderTrack(senderId: String?, newTrackId: String?, promise: Promise) {
@@ -115,19 +134,19 @@ class VisionRTCModule(reactContext: ReactApplicationContext) : NativeVisionRtcSp
   }
 
   override fun pauseTrack(trackId: String, promise: Promise) {
-    val cap = tracks[trackId]?.capturer
-    if (cap == null) {
-      promise.reject("ERR_UNKNOWN_TRACK", "Unknown trackId: $trackId"); return
-   }
-    cap.pause(); promise.resolve(null)
+    val handle = tracks[trackId]
+    if (handle == null) { promise.reject("ERR_UNKNOWN_TRACK", "Unknown trackId: $trackId"); return }
+    handle.cpuCapturer?.pause()
+    handle.glCapturer?.pause()
+    promise.resolve(null)
   }
 
   override fun resumeTrack(trackId: String, promise: Promise) {
-    val cap = tracks[trackId]?.capturer
-    if (cap == null) {
-      promise.reject("ERR_UNKNOWN_TRACK", "Unknown trackId: $trackId"); return
-    }
-    cap.resume(); promise.resolve(null)
+    val handle = tracks[trackId]
+    if (handle == null) { promise.reject("ERR_UNKNOWN_TRACK", "Unknown trackId: $trackId"); return }
+    handle.cpuCapturer?.resume()
+    handle.glCapturer?.resume()
+    promise.resolve(null)
   }
 
   override fun setTrackConstraints(trackId: String, opts: ReadableMap, promise: Promise) {
@@ -137,7 +156,8 @@ class VisionRTCModule(reactContext: ReactApplicationContext) : NativeVisionRtcSp
       return
     }
 
-    val cap = handle.capturer
+    val cpuCap = handle.cpuCapturer
+    val glCap = handle.glCapturer
 
     var nextWidth: Int? = null
     var nextHeight: Int? = null
@@ -163,19 +183,22 @@ class VisionRTCModule(reactContext: ReactApplicationContext) : NativeVisionRtcSp
     }
 
     if (nextWidth != null && nextHeight != null) {
-      cap.setResolution(nextWidth, nextHeight)
+      cpuCap?.setResolution(nextWidth, nextHeight)
+      glCap?.setResolution(nextWidth, nextHeight)
     }
     if (nextFps != null) {
-      cap.setFps(nextFps)
+      cpuCap?.setFps(nextFps)
+      glCap?.setFps(nextFps)
     }
 
-    targetFps = cap.fps
+    targetFps = cpuCap?.fps ?: (glCap?.fps ?: targetFps)
     promise.resolve(null)
   }
 
   override fun disposeTrack(trackId: String, promise: Promise) {
     tracks.remove(trackId)?.let { handle ->
-      handle.capturer.stop()
+      handle.cpuCapturer?.stop()
+      handle.glCapturer?.stop()
       handle.track.setEnabled(false)
       handle.track.dispose()
       handle.source.dispose()

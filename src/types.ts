@@ -6,6 +6,7 @@ export type TrackOptions = {
   bitrate?: number;
   colorSpace?: 'auto' | 'sRGB' | 'BT.709' | 'BT.2020';
   orientationMode?: 'auto' | 'fixed-0' | 'fixed-90' | 'fixed-180' | 'fixed-270';
+  mode?: 'null-gpu' | 'null-cpu' | 'external';
 };
 
 export type VisionCameraSource = {__nativeSourceId: string};

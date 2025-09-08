@@ -15,6 +15,7 @@ class VisionRTC: NSObject {
     var width: Int32
     var height: Int32
     var fps: Int
+    var mode: String
   }
 
   private var sources: [String: RTCVideoSource] = [:]
@@ -28,6 +29,9 @@ class VisionRTC: NSObject {
 
   private var captureTimer: DispatchSourceTimer?
   private let timerQueue = DispatchQueue(label: "com.visionrtc.capture", qos: .userInitiated)
+  private var gpuGenerators: [String: NullGPUGenerator] = [:]
+  private var producedFps: Int = 0
+  private var droppedFrames: Int = 0
 
   @objc(createVisionCameraSource:resolver:rejecter:)
   func createVisionCameraSource(viewTag: NSNumber,
@@ -44,6 +48,7 @@ class VisionRTC: NSObject {
     var width: Int32 = 1280
     var height: Int32 = 720
     var fps: Int = 30
+    let mode = (opts?["mode"] as? String) ?? "null-gpu"
     if let res = opts?["resolution"] as? [String: Any],
        let w = res["width"] as? NSNumber, let h = res["height"] as? NSNumber {
       width = w.int32Value; height = h.int32Value
@@ -59,11 +64,15 @@ class VisionRTC: NSObject {
       self.sources[trackId] = source
       self.tracks[trackId] = track
       self.capturers[trackId] = RTCVideoCapturer(delegate: source)
-      self.trackStates[trackId] = TrackState(width: width, height: height, fps: fps)
+      self.trackStates[trackId] = TrackState(width: width, height: height, fps: fps, mode: mode)
       self.activeTrackIds.insert(trackId)
       self.lastSent[trackId] = 0
     }
-    startNullCapturer()
+    VisionRTCTrackRegistry.shared.register(trackId: trackId, track: track)
+    if mode == "null-gpu" { startGpuGenerator(for: trackId) } else {
+      // TODO(phase3): Support 'external' mode ingesting CVPixelBuffer from Vision Camera
+      startNullCapturer()
+    }
 
     resolver(["trackId": trackId])
   }
@@ -80,6 +89,11 @@ class VisionRTC: NSObject {
       self.activeTrackIds.remove(trackId as String)
     }
     stateQueue.sync {
+      if let st = self.trackStates[trackId as String], st.mode == "null-gpu" {
+        self.stopGpuGenerator(for: trackId as String)
+      }
+    }
+    stateQueue.sync {
       if self.activeTrackIds.isEmpty { self.stopNullCapturer() }
     }
     resolver(NSNull())
@@ -90,7 +104,13 @@ class VisionRTC: NSObject {
     stateQueue.async(flags: .barrier) {
       self.activeTrackIds.insert(trackId as String)
     }
-    startNullCapturer()
+    stateQueue.sync {
+      if let st = self.trackStates[trackId as String], st.mode == "null-gpu" {
+        self.startGpuGenerator(for: trackId as String)
+      } else {
+        self.startNullCapturer()
+      }
+    }
     resolver(NSNull())
   }
 
@@ -116,6 +136,12 @@ class VisionRTC: NSObject {
         if let src = self.sources[trackId as String] {
           src.adaptOutputFormat(toWidth: st.width, height: st.height, fps: Int32(st.fps))
         }
+        if st.mode == "null-gpu" {
+          if let gen = self.gpuGenerators[trackId as String] {
+            if let w = nextWidth, let h = nextHeight { gen.setResolution(width: Int(w), height: Int(h)) }
+            if let f = nextFps { gen.setFps(f) }
+          }
+        }
       }
     }
     updateDisplayLinkFps()
@@ -132,6 +158,8 @@ class VisionRTC: NSObject {
       self.capturers.removeValue(forKey: trackId as String)
       self.lastSent.removeValue(forKey: trackId as String)
     }
+    VisionRTCTrackRegistry.shared.unregister(trackId: trackId as String)
+    stopGpuGenerator(for: trackId as String)
     stateQueue.sync {
       if self.activeTrackIds.isEmpty { self.stopNullCapturer() }
     }
@@ -140,11 +168,7 @@ class VisionRTC: NSObject {
 
   @objc(getStats:rejecter:)
   func getStats(resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) {
-    var fpsMax = 0
-    stateQueue.sync {
-      fpsMax = self.activeTrackIds.compactMap { self.trackStates[$0]?.fps }.max() ?? 0
-    }
-    resolver(["fps": fpsMax, "droppedFrames": 0])
+    resolver(["fps": producedFps, "droppedFrames": droppedFrames])
   }
 
   private func startNullCapturer() {
@@ -209,6 +233,7 @@ class VisionRTC: NSObject {
       }
       if !shouldEmit { continue }
 
+      if st.mode == "null-gpu" { continue }
       let width = Int(st.width)
       let height = Int(st.height)
       let bytesPerPixel = 4
@@ -269,5 +294,38 @@ class VisionRTC: NSObject {
         src.capturer(RTCVideoCapturer(delegate: src), didCapture: frame)
       }
     }
+  }
+}
+
+extension VisionRTC {
+  fileprivate func startGpuGenerator(for trackId: String) {
+    var stOpt: TrackState?
+    var srcOpt: RTCVideoSource?
+    stateQueue.sync {
+      stOpt = self.trackStates[trackId]
+      srcOpt = self.sources[trackId]
+    }
+    guard let st = stOpt, let src = srcOpt else { return }
+    let gen = NullGPUGenerator(width: Int(st.width), height: Int(st.height), fps: st.fps, onFrame: { [weak self] pb, tsNs in
+      guard let self = self else { return }
+      let rtcBuf = RTCCVPixelBuffer(pixelBuffer: pb)
+      let frame = RTCVideoFrame(buffer: rtcBuf, rotation: ._0, timeStampNs: tsNs)
+      var capOpt: RTCVideoCapturer?
+      self.stateQueue.sync { capOpt = self.capturers[trackId] }
+      if let cap = capOpt {
+        src.capturer(cap, didCapture: frame)
+      } else {
+        src.capturer(RTCVideoCapturer(delegate: src), didCapture: frame)
+      }
+    }, onFps: { [weak self] fpsNow, dropped in
+      self?.producedFps = fpsNow
+      self?.droppedFrames = dropped
+    })
+    gpuGenerators[trackId] = gen
+    gen.start()
+  }
+
+  fileprivate func stopGpuGenerator(for trackId: String) {
+    if let g = gpuGenerators.removeValue(forKey: trackId) { g.stop() }
   }
 }

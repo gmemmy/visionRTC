@@ -37,6 +37,37 @@ async function demo(reactTag: number) {
 // demo(findNodeHandle(cameraRef));
 ```
 
+### API
+
+- **Functions**
+  - `createVisionCameraSource(viewTag: number)`: Links a native camera-like view to the library and returns a source you can stream from.
+  - `createWebRTCTrack(source, opts?)`: Creates a WebRTC video track from a source. You can pass simple options like `fps` and `resolution`.
+  - `replaceTrack(senderId: string, nextTrackId: string)`: Swaps the video track used by an existing WebRTC sender.
+  - `pauseTrack(trackId: string)`: Temporarily stops sending frames for that track (does not destroy it).
+  - `resumeTrack(trackId: string)`: Restarts frame sending for a paused track.
+  - `setTrackConstraints(trackId: string, opts)`: Changes track settings on the fly (for example, fps or resolution).
+  - `disposeTrack(trackId: string)`: Frees native resources for that track.
+  - `getStats()`: Returns basic runtime stats like `fps` and `droppedFrames` (if supported on the platform).
+
+- **Component**
+  - `VisionRTCView`: A native view that can render a given `trackId`.
+    - Props:
+      - `trackId?: string | null`
+      - `style?: ViewStyle | ViewStyle[]`
+
+- **Types**
+  - `TrackOptions`: Options for tracks. Common fields:
+    - `fps?: number` (frames per second)
+    - `resolution?: { width: number; height: number }`
+    - `bitrate?: number`
+    - `colorSpace?: 'auto' | 'sRGB' | 'BT.709' | 'BT.2020'`
+    - `orientationMode?: 'auto' | 'fixed-0' | 'fixed-90' | 'fixed-180' | 'fixed-270'`
+    - `mode?: 'null-gpu' | 'null-cpu' | 'external'`
+  - `VisionRTCTrack`: `{ trackId: string }` returned when you create a track.
+  - `VisionCameraSource`: Source handle returned by `createVisionCameraSource`.
+  - `NativePixelSource`: Low-level source if you already have native pixels (platform-specific shapes).
+  - `Resolution`: `{ width: number; height: number }`.
+
 
 ## Contributing
 

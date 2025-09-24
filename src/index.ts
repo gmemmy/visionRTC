@@ -6,6 +6,7 @@ import type {
   NativePixelSource,
   Resolution,
 } from './types';
+import VisionRTCView from './vision-rtc-view';
 
 export type {
   TrackOptions,
@@ -14,6 +15,8 @@ export type {
   NativePixelSource,
   Resolution,
 };
+
+export {VisionRTCView};
 
 export async function createVisionCameraSource(
   viewTag: number

@@ -11,6 +11,7 @@ type NativePixelSourceShape =
 type TrackOptionsShape = {
   fps?: number;
   resolution?: {width: number; height: number};
+  mode?: 'null-gpu' | 'null-cpu' | 'external';
 };
 
 export interface Spec extends TurboModule {

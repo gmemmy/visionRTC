@@ -1,10 +1,11 @@
 import * as React from 'react';
-import {Button, Text, StyleSheet} from 'react-native';
+import {Button, Text, StyleSheet, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {
   createWebRTCTrack,
   disposeTrack,
   getStats,
+  VisionRTCView,
 } from 'react-native-vision-rtc';
 
 export default function App() {
@@ -68,12 +69,19 @@ export default function App() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
-      <Button title="Start" onPress={onStart} />
-      <Button title="Stop" onPress={onStop} />
-      <Button title="Get Stats" onPress={onGetStats} />
-      {stats && (
-        <Text>{`fps: ${stats.fps} dropped: ${stats.droppedFrames}`}</Text>
-      )}
+      <View style={styles.controls}>
+        <Button title="Start" onPress={onStart} />
+        <Button title="Stop" onPress={onStop} />
+        <Button title="Get Stats" onPress={onGetStats} />
+      </View>
+      <View style={styles.preview}>
+        <VisionRTCView trackId={trackId ?? ''} />
+        <View style={styles.hud} pointerEvents="none">
+          <Text style={styles.hudText}>
+            {`fps: ${stats?.fps ?? 0} drops: ${stats?.droppedFrames ?? 0}`}
+          </Text>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -81,7 +89,31 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: '#ffff',
+  },
+  controls: {
+    padding: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     alignItems: 'center',
+  },
+  preview: {
+    flex: 1,
+    alignItems: 'stretch',
+    justifyContent: 'center',
+  },
+  fill: {flex: 1},
+  hud: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  hudText: {
+    color: '#fff',
+    fontSize: 12,
   },
 });

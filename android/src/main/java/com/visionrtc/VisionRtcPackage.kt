@@ -3,6 +3,7 @@ package com.visionrtc
 import com.facebook.react.BaseReactPackage
 import com.facebook.react.bridge.NativeModule
 import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.uimanager.ViewManager
 import com.facebook.react.module.model.ReactModuleInfo
 import com.facebook.react.module.model.ReactModuleInfoProvider
 import java.util.HashMap
@@ -29,5 +30,9 @@ class VisionRTCPackage : BaseReactPackage() {
       )
       moduleInfos
     }
+  }
+
+  override fun createViewManagers(reactContext: ReactApplicationContext): MutableList<ViewManager<*, *>> {
+    return mutableListOf(VisionRtcViewManager(reactContext))
   }
 }

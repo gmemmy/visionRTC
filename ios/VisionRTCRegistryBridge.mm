@@ -2,6 +2,9 @@
 #import <WebRTC/WebRTC.h>
 #import <objc/message.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 RTCVideoTrack * _Nullable VisionRTCGetTrackFor(NSString * _Nonnull trackId) {
   Class registryClass = NSClassFromString(@"VisionRtc.VisionRTCTrackRegistry");
   if (registryClass == nil) {
@@ -19,3 +22,6 @@ RTCVideoTrack * _Nullable VisionRTCGetTrackFor(NSString * _Nonnull trackId) {
   RTCVideoTrack *track = ((RTCVideoTrack * (*)(id, SEL, NSString *))objc_msgSend)(shared, trackForSel, trackId);
   return track;
 }
+#ifdef __cplusplus
+}
+#endif

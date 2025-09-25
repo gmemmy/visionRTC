@@ -8,6 +8,13 @@
 - (void)createVisionCameraSource:(NSNumber *)viewTag
                          resolver:(RCTPromiseResolveBlock)resolve
                          rejecter:(RCTPromiseRejectBlock)reject;
+- (void)updateSource:(NSString *)sourceId
+                opts:(NSDictionary *)opts
+            resolver:(RCTPromiseResolveBlock)resolve
+            rejecter:(RCTPromiseRejectBlock)reject;
+- (void)disposeSource:(NSString *)sourceId
+             resolver:(RCTPromiseResolveBlock)resolve
+             rejecter:(RCTPromiseRejectBlock)reject;
 - (void)createTrack:(NSDictionary *)source
                opts:(NSDictionary *)opts
             resolver:(RCTPromiseResolveBlock)resolve
@@ -31,6 +38,9 @@
               rejecter:(RCTPromiseRejectBlock)reject;
 - (void)getStats:(RCTPromiseResolveBlock)resolve
           rejecter:(RCTPromiseRejectBlock)reject;
+ - (void)getStatsForTrack:(NSString *)trackId
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject;
 @end
 
 @interface VisionRTCTurbo : NSObject <NativeVisionRtcSpec>
@@ -91,6 +101,10 @@ RCT_EXPORT_MODULE(VisionRTC)
     resDict[@"width"] = @((*res).width());
     resDict[@"height"] = @((*res).height());
     optsDict[@"resolution"] = resDict;
+  }
+  NSString *bp = opts.backpressure();
+  if (bp != nil) {
+    optsDict[@"backpressure"] = bp;
   }
   [self.swift createTrack:source opts:optsDict resolver:resolve rejecter:reject];
 }
@@ -156,6 +170,10 @@ RCT_EXPORT_MODULE(VisionRTC)
     resDict[@"height"] = @((*res).height());
     optsDict[@"resolution"] = resDict;
   }
+  NSString *bp = opts.backpressure();
+  if (bp != nil) {
+    optsDict[@"backpressure"] = bp;
+  }
   [self.swift setTrackConstraints:trackId opts:optsDict resolver:resolve rejecter:reject];
 }
 
@@ -182,6 +200,46 @@ RCT_EXPORT_MODULE(VisionRTC)
     return;
   }
   [self.swift getStats:resolve rejecter:reject];
+}
+
+- (void)getStatsForTrack:(NSString *)trackId
+                 resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject
+{
+  if (!self.swift) {
+    if (reject) reject(@"E_NO_SWIFT_IMPL",
+                       @"VisionRTC Swift implementation not found. Ensure @objc(VisionRTC) exists in module 'VisionRtc'.",
+                       nil);
+    return;
+  }
+  [self.swift getStatsForTrack:trackId resolver:resolve rejecter:reject];
+}
+
+- (void)updateSource:(NSString *)sourceId
+                opts:(NSDictionary *)opts
+             resolve:(RCTPromiseResolveBlock)resolve
+              reject:(RCTPromiseRejectBlock)reject
+{
+  if (!self.swift) {
+    if (reject) reject(@"E_NO_SWIFT_IMPL",
+                       @"VisionRTC Swift implementation not found. Ensure @objc(VisionRTC) exists in module 'VisionRtc'.",
+                       nil);
+    return;
+  }
+  [self.swift updateSource:sourceId opts:opts resolver:resolve rejecter:reject];
+}
+
+- (void)disposeSource:(NSString *)sourceId
+              resolve:(RCTPromiseResolveBlock)resolve
+               reject:(RCTPromiseRejectBlock)reject
+{
+  if (!self.swift) {
+    if (reject) reject(@"E_NO_SWIFT_IMPL",
+                       @"VisionRTC Swift implementation not found. Ensure @objc(VisionRTC) exists in module 'VisionRtc'.",
+                       nil);
+    return;
+  }
+  [self.swift disposeSource:sourceId resolver:resolve rejecter:reject];
 }
 
 @end

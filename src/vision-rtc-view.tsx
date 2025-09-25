@@ -1,9 +1,31 @@
-import {View, Text, StyleSheet} from 'react-native';
+import type {ReactNode} from 'react';
+import {
+  requireNativeComponent,
+  StyleSheet,
+  View,
+  type ViewStyle,
+  type StyleProp,
+} from 'react-native';
 
-export default function VisionRTCView({trackId}: {trackId: string}) {
+type Props = {
+  trackId?: string | null;
+  style?: StyleProp<ViewStyle>;
+  children?: ReactNode;
+};
+
+const NativeView = requireNativeComponent<{
+  trackId: string;
+  style?: StyleProp<ViewStyle>;
+}>('VisionRTCView');
+
+export default function VisionRTCView({trackId, style, children}: Props) {
   return (
-    <View style={styles.container}>
-      <Text>{trackId}</Text>
+    <View style={[styles.container, style]}>
+      <NativeView
+        trackId={trackId ?? ''}
+        style={StyleSheet.absoluteFillObject}
+      />
+      {children}
     </View>
   );
 }

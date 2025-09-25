@@ -15,7 +15,8 @@ class VisionRTC: NSObject {
     var width: Int32
     var height: Int32
     var fps: Int
-    var mode: String
+    var mode: String // 'null-gpu' | 'null-cpu' | 'external'
+    var backpressure: String? // 'drop-late' | 'latest-wins' | 'throttle'
   }
 
   private var sources: [String: RTCVideoSource] = [:]
@@ -26,6 +27,26 @@ class VisionRTC: NSObject {
   private var activeTrackIds: Set<String> = []
   private let stateQueue = DispatchQueue(label: "com.visionrtc.state", attributes: .concurrent)
   private var lastSent: [String: CFTimeInterval] = [:]
+
+  private struct SourceHandle {
+    let viewTag: Int
+    var position: String?
+    var torch: Bool?
+    var maxFps: Int?
+  }
+  private var cameraSources: [String: SourceHandle] = [:]
+  private var sourceToTrackIds: [String: Set<String>] = [:]
+  private var trackToSourceId: [String: String] = [:]
+
+  // Backpressure and stats (per track)
+  private var latestBufferByTrack: [String: (pb: CVPixelBuffer, tsNs: Int64)] = [:]
+  private var producedThisSecond: [String: Int] = [:]
+  private var deliveredThisSecond: [String: Int] = [:]
+  private var lastSecondWallClock: [String: CFTimeInterval] = [:]
+  private var deliveredFpsByTrack: [String: Int] = [:]
+  private var producedFpsByTrack: [String: Int] = [:]
+  private var droppedFramesByTrack: [String: Int] = [:]
+  private var pausedForReconfig: Set<String> = []
 
   private var captureTimer: DispatchSourceTimer?
   private let timerQueue = DispatchQueue(label: "com.visionrtc.capture", qos: .userInitiated)
@@ -38,7 +59,53 @@ class VisionRTC: NSObject {
                                 resolver: RCTPromiseResolveBlock,
                                 rejecter: RCTPromiseRejectBlock) {
     let id = UUID().uuidString
+    let handle = SourceHandle(viewTag: viewTag.intValue, position: nil, torch: nil, maxFps: nil)
+    stateQueue.async(flags: .barrier) {
+      self.cameraSources[id] = handle
+      self.sourceToTrackIds[id] = Set<String>()
+    }
     resolver(["__nativeSourceId": id])
+  }
+
+  @objc(updateSource:opts:resolver:rejecter:)
+  func updateSource(sourceId: NSString, opts: NSDictionary,
+                    resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) {
+    stateQueue.async(flags: .barrier) {
+      if var s = self.cameraSources[sourceId as String] {
+        if let pos = opts["position"] as? String { s.position = pos }
+        if let torch = opts["torch"] as? NSNumber { s.torch = torch.boolValue }
+        if let maxFps = opts["maxFps"] as? NSNumber { s.maxFps = maxFps.intValue }
+        self.cameraSources[sourceId as String] = s
+      }
+      let tracksForSource = Array(self.sourceToTrackIds[sourceId as String] ?? [])
+      for tid in tracksForSource {
+        self.pausedForReconfig.insert(tid)
+        self.latestBufferByTrack.removeValue(forKey: tid)
+        self.lastSent.removeValue(forKey: tid)
+        self.producedThisSecond[tid] = 0
+        self.deliveredThisSecond[tid] = 0
+        self.producedFpsByTrack[tid] = 0
+        self.deliveredFpsByTrack[tid] = 0
+        self.droppedFramesByTrack[tid] = 0
+        self.lastSecondWallClock[tid] = CACurrentMediaTime()
+      }
+    }
+    stateQueue.asyncAfter(deadline: .now() + 0.35, flags: .barrier) {
+      let tracksForSource = Array(self.sourceToTrackIds[sourceId as String] ?? [])
+      for tid in tracksForSource {
+        self.pausedForReconfig.remove(tid)
+      }
+    }
+    resolver(NSNull())
+  }
+
+  @objc(disposeSource:resolver:rejecter:)
+  func disposeSource(sourceId: NSString, resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) {
+    stateQueue.async(flags: .barrier) {
+      self.cameraSources.removeValue(forKey: sourceId as String)
+      self.sourceToTrackIds.removeValue(forKey: sourceId as String)
+    }
+    resolver(NSNull())
   }
 
   @objc(createTrack:opts:resolver:rejecter:)
@@ -48,7 +115,8 @@ class VisionRTC: NSObject {
     var width: Int32 = 1280
     var height: Int32 = 720
     var fps: Int = 30
-    let mode = (opts?["mode"] as? String) ?? "null-gpu"
+    var mode = (opts?["mode"] as? String)
+    var backpressure = opts?["backpressure"] as? String
     if let res = opts?["resolution"] as? [String: Any],
        let w = res["width"] as? NSNumber, let h = res["height"] as? NSNumber {
       width = w.int32Value; height = h.int32Value
@@ -60,19 +128,33 @@ class VisionRTC: NSObject {
     let trackId = UUID().uuidString
     let track = factory.videoTrack(with: source, trackId: trackId)
 
+    var boundSourceId: String?
+    if let sd = sourceDict, let sid = sd["__nativeSourceId"] as? String {
+      boundSourceId = sid
+      if mode == nil { mode = "external" }
+    }
+    if mode == nil { mode = "null-gpu" }
+
     stateQueue.async(flags: .barrier) {
       self.sources[trackId] = source
       self.tracks[trackId] = track
       self.capturers[trackId] = RTCVideoCapturer(delegate: source)
-      self.trackStates[trackId] = TrackState(width: width, height: height, fps: fps, mode: mode)
+      self.trackStates[trackId] = TrackState(width: width, height: height, fps: fps, mode: mode!, backpressure: backpressure)
       self.activeTrackIds.insert(trackId)
       self.lastSent[trackId] = 0
+      if let sid = boundSourceId {
+        self.trackToSourceId[trackId] = sid
+        var set = self.sourceToTrackIds[sid] ?? Set<String>()
+        set.insert(trackId)
+        self.sourceToTrackIds[sid] = set
+      }
     }
     VisionRTCTrackRegistry.shared.register(trackId: trackId, track: track)
-    if mode == "null-gpu" { startGpuGenerator(for: trackId) } else {
-      // TODO(phase3): Support 'external' mode ingesting CVPixelBuffer from Vision Camera
+    if mode == "null-gpu" {
+      startGpuGenerator(for: trackId)
+    } else if mode == "null-cpu" {
       startNullCapturer()
-    }
+    } // 'external' emits frames from camera binding
 
     resolver(["trackId": trackId])
   }
@@ -92,8 +174,6 @@ class VisionRTC: NSObject {
       if let st = self.trackStates[trackId as String], st.mode == "null-gpu" {
         self.stopGpuGenerator(for: trackId as String)
       }
-    }
-    stateQueue.sync {
       if self.activeTrackIds.isEmpty { self.stopNullCapturer() }
     }
     resolver(NSNull())
@@ -105,10 +185,12 @@ class VisionRTC: NSObject {
       self.activeTrackIds.insert(trackId as String)
     }
     stateQueue.sync {
-      if let st = self.trackStates[trackId as String], st.mode == "null-gpu" {
-        self.startGpuGenerator(for: trackId as String)
-      } else {
-        self.startNullCapturer()
+      if let st = self.trackStates[trackId as String] {
+        if st.mode == "null-gpu" {
+          self.startGpuGenerator(for: trackId as String)
+        } else if st.mode == "null-cpu" {
+          self.startNullCapturer()
+        }
       }
     }
     resolver(NSNull())
@@ -120,18 +202,21 @@ class VisionRTC: NSObject {
     var nextWidth: Int32?
     var nextHeight: Int32?
     var nextFps: Int?
+    var nextBackpressure: String?
 
     if let res = opts["resolution"] as? [String: Any] {
       if let w = res["width"] as? NSNumber { nextWidth = w.int32Value }
       if let h = res["height"] as? NSNumber { nextHeight = h.int32Value }
     }
     if let f = opts["fps"] as? NSNumber { nextFps = f.intValue }
+    if let bp = opts["backpressure"] as? String { nextBackpressure = bp }
 
     stateQueue.async(flags: .barrier) {
       if var st = self.trackStates[trackId as String] {
         if let w = nextWidth { st.width = w }
         if let h = nextHeight { st.height = h }
         if let f = nextFps { st.fps = f }
+        if let bp = nextBackpressure { st.backpressure = bp }
         self.trackStates[trackId as String] = st
         if let src = self.sources[trackId as String] {
           src.adaptOutputFormat(toWidth: st.width, height: st.height, fps: Int32(st.fps))
@@ -168,7 +253,17 @@ class VisionRTC: NSObject {
 
   @objc(getStats:rejecter:)
   func getStats(resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) {
-    resolver(["fps": producedFps, "droppedFrames": droppedFrames])
+    var deliveredSum = 0
+    var droppedSum = 0
+    stateQueue.sync {
+      deliveredSum = self.deliveredFpsByTrack.values.reduce(0, +)
+      droppedSum = self.droppedFramesByTrack.values.reduce(0, +)
+      // If not yet rolled in this second, fall back to current counters
+      if deliveredSum == 0 {
+        deliveredSum = self.deliveredThisSecond.values.reduce(0, +)
+      }
+    }
+    resolver(["fps": deliveredSum, "droppedFrames": droppedSum])
   }
 
   private func startNullCapturer() {
@@ -231,9 +326,16 @@ class VisionRTC: NSObject {
           shouldEmit = true
         }
       }
-      if !shouldEmit { continue }
+      if !shouldEmit {
+        if policy == "latest-wins" {
+          stateQueue.sync(flags: .barrier) {
+            self.droppedFramesByTrack[trackId] = (self.droppedFramesByTrack[trackId] ?? 0) + 1
+          }
+        }
+        continue
+      }
 
-      if st.mode == "null-gpu" { continue }
+      if st.mode != "null-cpu" { continue }
       let width = Int(st.width)
       let height = Int(st.height)
       let bytesPerPixel = 4
@@ -293,11 +395,137 @@ class VisionRTC: NSObject {
       } else {
         src.capturer(RTCVideoCapturer(delegate: src), didCapture: frame)
       }
+      // Update per-track stats for null-cpu: produced and delivered together
+      self.stateQueue.sync(flags: .barrier) {
+        self.producedThisSecond[trackId] = (self.producedThisSecond[trackId] ?? 0) + 1
+        self.deliveredThisSecond[trackId] = (self.deliveredThisSecond[trackId] ?? 0) + 1
+        if self.lastSecondWallClock[trackId] == nil {
+          self.lastSecondWallClock[trackId] = nowSec
+        }
+        let lastSecond = self.lastSecondWallClock[trackId] ?? nowSec
+        if nowSec - lastSecond >= 1.0 {
+          self.producedFpsByTrack[trackId] = self.producedThisSecond[trackId] ?? 0
+          self.deliveredFpsByTrack[trackId] = self.deliveredThisSecond[trackId] ?? 0
+          self.producedThisSecond[trackId] = 0
+          self.deliveredThisSecond[trackId] = 0
+          self.lastSecondWallClock[trackId] = nowSec
+        }
+      }
     }
   }
 }
 
 extension VisionRTC {
+  fileprivate func deliverExternalFrame(sourceId: String, pixelBuffer: CVPixelBuffer, timestampNs: Int64) {
+    var trackIds: [String] = []
+    stateQueue.sync { trackIds = Array(self.sourceToTrackIds[sourceId] ?? []) }
+    if trackIds.isEmpty { return }
+    for trackId in trackIds {
+      var isPaused = false
+      stateQueue.sync { isPaused = self.pausedForReconfig.contains(trackId) }
+      if isPaused { continue }
+      var stOpt: TrackState?
+      var srcOpt: RTCVideoSource?
+      var capOpt: RTCVideoCapturer?
+      stateQueue.sync {
+        stOpt = self.trackStates[trackId]
+        srcOpt = self.sources[trackId]
+        capOpt = self.capturers[trackId]
+      }
+      guard let st = stOpt, let src = srcOpt else { continue }
+      let nowSec = CACurrentMediaTime()
+      let intervalSec = 1.0 / Double(max(1, st.fps))
+
+      // Update produced counters and per-second rollups
+      stateQueue.sync(flags: .barrier) {
+        self.producedThisSecond[trackId] = (self.producedThisSecond[trackId] ?? 0) + 1
+        if self.lastSecondWallClock[trackId] == nil {
+          self.lastSecondWallClock[trackId] = nowSec
+        }
+        let lastSecond = self.lastSecondWallClock[trackId] ?? nowSec
+        if nowSec - lastSecond >= 1.0 {
+          self.producedFpsByTrack[trackId] = self.producedThisSecond[trackId] ?? 0
+          self.deliveredFpsByTrack[trackId] = self.deliveredThisSecond[trackId] ?? 0
+          self.producedThisSecond[trackId] = 0
+          self.deliveredThisSecond[trackId] = 0
+          self.lastSecondWallClock[trackId] = nowSec
+        }
+      }
+
+      let policy = st.backpressure ?? "drop-late"
+      var shouldEmit = false
+      var bufferToSend: CVPixelBuffer = pixelBuffer
+
+      stateQueue.sync(flags: .barrier) {
+        let last = self.lastSent[trackId] ?? 0
+        if policy == "latest-wins" {
+          // Always keep the latest; emit only on cadence. Count suppressed frames as drops.
+          self.latestBufferByTrack[trackId] = (pixelBuffer, timestampNs)
+          if nowSec - last >= intervalSec {
+            self.lastSent[trackId] = nowSec
+            if let latest = self.latestBufferByTrack[trackId] {
+              bufferToSend = latest.pb
+            }
+            shouldEmit = true
+          } else {
+            self.droppedFramesByTrack[trackId] = (self.droppedFramesByTrack[trackId] ?? 0) + 1
+          }
+        } else if policy == "throttle" {
+          self.latestBufferByTrack[trackId] = (pixelBuffer, timestampNs)
+          if nowSec - last >= intervalSec {
+            self.lastSent[trackId] = nowSec
+            if let latest = self.latestBufferByTrack[trackId] {
+              bufferToSend = latest.pb
+            }
+            shouldEmit = true
+          }
+        } else {
+          if nowSec - last >= intervalSec {
+            self.lastSent[trackId] = nowSec
+            shouldEmit = true
+          } else {
+            self.droppedFramesByTrack[trackId] = (self.droppedFramesByTrack[trackId] ?? 0) + 1
+          }
+        }
+      }
+
+      if !shouldEmit { continue }
+
+      let rtcBuf = RTCCVPixelBuffer(pixelBuffer: bufferToSend)
+      let ts: Int64 = (policy == "latest-wins" ? (stateQueue.sync { self.latestBufferByTrack[trackId]?.tsNs } ?? timestampNs) : timestampNs)
+      let frame = RTCVideoFrame(buffer: rtcBuf, rotation: ._0, timeStampNs: ts)
+      if let cap = capOpt {
+        src.capturer(cap, didCapture: frame)
+      } else {
+        src.capturer(RTCVideoCapturer(delegate: src), didCapture: frame)
+      }
+
+      stateQueue.sync(flags: .barrier) {
+        self.deliveredThisSecond[trackId] = (self.deliveredThisSecond[trackId] ?? 0) + 1
+        let lastSecond = self.lastSecondWallClock[trackId] ?? nowSec
+        if nowSec - lastSecond >= 1.0 {
+          self.producedFpsByTrack[trackId] = self.producedThisSecond[trackId] ?? 0
+          self.deliveredFpsByTrack[trackId] = self.deliveredThisSecond[trackId] ?? 0
+          self.producedThisSecond[trackId] = 0
+          self.deliveredThisSecond[trackId] = 0
+          self.lastSecondWallClock[trackId] = nowSec
+        }
+      }
+    }
+  }
+
+  @objc(getStatsForTrack:resolver:rejecter:)
+  func getStatsForTrack(trackId: NSString, resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) {
+    var produced = 0
+    var delivered = 0
+    var dropped = 0
+    stateQueue.sync {
+      produced = self.producedFpsByTrack[trackId as String] ?? 0
+      delivered = self.deliveredFpsByTrack[trackId as String] ?? 0
+      dropped = self.droppedFramesByTrack[trackId as String] ?? 0
+    }
+    resolver(["producedFps": produced, "deliveredFps": delivered, "droppedFrames": dropped])
+  }
   fileprivate func startGpuGenerator(for trackId: String) {
     var stOpt: TrackState?
     var srcOpt: RTCVideoSource?
@@ -317,9 +545,27 @@ extension VisionRTC {
       } else {
         src.capturer(RTCVideoCapturer(delegate: src), didCapture: frame)
       }
+      let nowSec = CACurrentMediaTime()
+      self.stateQueue.sync(flags: .barrier) {
+        self.producedThisSecond[trackId] = (self.producedThisSecond[trackId] ?? 0) + 1
+        self.deliveredThisSecond[trackId] = (self.deliveredThisSecond[trackId] ?? 0) + 1
+        if self.lastSecondWallClock[trackId] == nil {
+          self.lastSecondWallClock[trackId] = nowSec
+        }
+        let lastSecond = self.lastSecondWallClock[trackId] ?? nowSec
+        if nowSec - lastSecond >= 1.0 {
+          self.producedFpsByTrack[trackId] = self.producedThisSecond[trackId] ?? 0
+          self.deliveredFpsByTrack[trackId] = self.deliveredThisSecond[trackId] ?? 0
+          self.producedThisSecond[trackId] = 0
+          self.deliveredThisSecond[trackId] = 0
+          self.lastSecondWallClock[trackId] = nowSec
+        }
+      }
     }, onFps: { [weak self] fpsNow, dropped in
-      self?.producedFps = fpsNow
-      self?.droppedFrames = dropped
+      guard let self = self else { return }
+      self.stateQueue.sync(flags: .barrier) {
+        self.droppedFramesByTrack[trackId] = dropped
+      }
     })
     gpuGenerators[trackId] = gen
     gen.start()

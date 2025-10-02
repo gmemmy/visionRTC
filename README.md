@@ -2,12 +2,13 @@
 
 React Native library for streaming Vision Camera, ARKit, OpenCV, or ML frames over WebRTC.
 
-## Installation
+> 🚧 This library is a work in progress. APIs, behaviors, and native implementations may change without notice.
 
+![VisionRTC demo preview](https://github.com/user-attachments/assets/b30a3955-32d8-4b9d-8c48-4276b7dd1014)
 
-```sh
-npm install react-native-vision-rtc
-```
+## Status
+
+The package has not been published to npm yet. Installation instructions will be added once the first release is available.
 
 
 ## Usage

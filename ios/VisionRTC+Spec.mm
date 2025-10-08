@@ -41,6 +41,11 @@
  - (void)getStatsForTrack:(NSString *)trackId
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject;
+- (void)deliverFrame:(NSString *)sourceId
+         pixelBuffer:(CVPixelBuffer *)pixelBuffer
+         timestampNs:(NSNumber *)timestampNs
+            resolver:(RCTPromiseResolveBlock)resolve
+            rejecter:(RCTPromiseRejectBlock)reject;
 @end
 
 @interface VisionRTCTurbo : NSObject <NativeVisionRtcSpec>
@@ -240,6 +245,21 @@ RCT_EXPORT_MODULE(VisionRTC)
     return;
   }
   [self.swift disposeSource:sourceId resolver:resolve rejecter:reject];
+}
+
+- (void)deliverFrame:(NSString *)sourceId
+         pixelBuffer:(CVPixelBuffer *)pixelBuffer
+         timestampNs:(NSNumber *)timestampNs
+             resolve:(RCTPromiseResolveBlock)resolve
+              reject:(RCTPromiseRejectBlock)reject
+{
+  if (!self.swift) {
+    if (reject) reject(@"E_NO_SWIFT_IMPL",
+                       @"VisionRTC Swift implementation not found. Ensure @objc(VisionRTC) exists in module 'VisionRtc'.",
+                       nil);
+    return;
+  }
+  [self.swift deliverFrame:sourceId pixelBuffer:pixelBuffer timestampNs:timestampNs resolver:resolve rejecter:reject];
 }
 
 @end

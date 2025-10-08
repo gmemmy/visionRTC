@@ -50,6 +50,11 @@ export type Spec = TurboModule & {
     deliveredFps: number;
     droppedFrames: number;
   }>;
+  readonly deliverFrame?: (
+    sourceId: string,
+    pixelBuffer: unknown,
+    timestampNs: number
+  ) => Promise<void>;
 };
 
 export default TurboModuleRegistry.getEnforcing<Spec>('VisionRTC');

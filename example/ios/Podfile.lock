@@ -2341,6 +2341,12 @@ PODS:
     - React-utils (= 0.81.1)
     - SocketRocket
   - SocketRocket (0.7.1)
+  - VisionCamera (4.7.2):
+    - VisionCamera/Core (= 4.7.2)
+    - VisionCamera/React (= 4.7.2)
+  - VisionCamera/Core (4.7.2)
+  - VisionCamera/React (4.7.2):
+    - React-Core
   - VisionRtc (0.1.0):
     - boost
     - DoubleConversion
@@ -2447,6 +2453,7 @@ DEPENDENCIES:
   - ReactCodegen (from `build/generated/ios`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - SocketRocket (~> 0.7.1)
+  - VisionCamera (from `../node_modules/react-native-vision-camera`)
   - VisionRtc (from `../..`)
   - WebRTC-SDK
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
@@ -2600,6 +2607,8 @@ EXTERNAL SOURCES:
     :path: build/generated/ios
   ReactCommon:
     :path: "../node_modules/react-native/ReactCommon"
+  VisionCamera:
+    :path: "../node_modules/react-native-vision-camera"
   VisionRtc:
     :path: "../.."
   Yoga:
@@ -2678,6 +2687,7 @@ SPEC CHECKSUMS:
   ReactCodegen: 4d203eddf6f977caa324640a20f92e70408d648b
   ReactCommon: ce5d4226dfaf9d5dacbef57b4528819e39d3a120
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
+  VisionCamera: 30b358b807324c692064f78385e9a732ce1bebfe
   VisionRtc: 56e770d48b49da73a130f18a3ca12148a12126e8
   WebRTC-SDK: 69d4e56b0b4b27d788e87bab9b9a1326ed05b1e3
   Yoga: 11c9686a21e2cd82a094a723649d9f4507200fb0

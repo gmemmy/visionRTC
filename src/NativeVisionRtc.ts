@@ -11,13 +11,19 @@ type NativePixelSourceShape =
 type TrackOptionsShape = {
   fps?: number;
   resolution?: {width: number; height: number};
+  backpressure?: 'drop-late' | 'latest-wins' | 'throttle';
   mode?: 'null-gpu' | 'null-cpu' | 'external';
 };
 
-export interface Spec extends TurboModule {
+export type Spec = TurboModule & {
   readonly createVisionCameraSource: (
     viewTag: number
   ) => Promise<VisionCameraSourceShape>;
+  readonly updateSource: (
+    sourceId: string,
+    opts: {position?: 'front' | 'back'; torch?: boolean; maxFps?: number}
+  ) => Promise<void>;
+  readonly disposeSource: (sourceId: string) => Promise<void>;
   readonly createTrack: (
     source: VisionCameraSourceShape | NativePixelSourceShape,
     opts?: TrackOptionsShape
@@ -39,6 +45,16 @@ export interface Spec extends TurboModule {
     droppedFrames: number;
     encoderQueueDepth?: number;
   }>;
-}
+  readonly getStatsForTrack?: (trackId: string) => Promise<{
+    producedFps: number;
+    deliveredFps: number;
+    droppedFrames: number;
+  }>;
+  readonly deliverFrame?: (
+    sourceId: string,
+    pixelBuffer: unknown,
+    timestampNs: number
+  ) => Promise<void>;
+};
 
 export default TurboModuleRegistry.getEnforcing<Spec>('VisionRTC');

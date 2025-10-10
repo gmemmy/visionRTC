@@ -8,6 +8,12 @@
 @end
 
 @implementation VisionRTCView
+- (void)dealloc {
+  if (self.attachedTrack) {
+    [self.attachedTrack removeRenderer:self];
+    self.attachedTrack = nil;
+  }
+}
 - (void)setTrackId:(NSString *)trackId {
   if ([_trackId isEqualToString:trackId]) { return; }
   _trackId = [trackId copy];

@@ -102,6 +102,13 @@ class VisionRTC: NSObject {
   @objc(disposeSource:resolver:rejecter:)
   func disposeSource(sourceId: NSString, resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) {
     stateQueue.async(flags: .barrier) {
+      // Clean up pixel buffers for all tracks using this source
+      if let trackIds = self.sourceToTrackIds[sourceId as String] {
+        for trackId in trackIds {
+          self.latestBufferByTrack.removeValue(forKey: trackId)
+          self.trackToSourceId.removeValue(forKey: trackId)
+        }
+      }
       self.cameraSources.removeValue(forKey: sourceId as String)
       self.sourceToTrackIds.removeValue(forKey: sourceId as String)
     }
@@ -169,6 +176,8 @@ class VisionRTC: NSObject {
   func pauseTrack(trackId: NSString, resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) {
     stateQueue.async(flags: .barrier) {
       self.activeTrackIds.remove(trackId as String)
+      // Clean up retained pixel buffer to prevent memory leaks
+      self.latestBufferByTrack.removeValue(forKey: trackId as String)
     }
     stateQueue.sync {
       if let st = self.trackStates[trackId as String], st.mode == "null-gpu" {
@@ -242,6 +251,13 @@ class VisionRTC: NSObject {
       self.sources.removeValue(forKey: trackId as String)
       self.capturers.removeValue(forKey: trackId as String)
       self.lastSent.removeValue(forKey: trackId as String)
+      self.latestBufferByTrack.removeValue(forKey: trackId as String)
+      self.producedThisSecond.removeValue(forKey: trackId as String)
+      self.deliveredThisSecond.removeValue(forKey: trackId as String)
+      self.lastSecondWallClock.removeValue(forKey: trackId as String)
+      self.deliveredFpsByTrack.removeValue(forKey: trackId as String)
+      self.producedFpsByTrack.removeValue(forKey: trackId as String)
+      self.droppedFramesByTrack.removeValue(forKey: trackId as String)
     }
     VisionRTCTrackRegistry.shared.unregister(trackId: trackId as String)
     stopGpuGenerator(for: trackId as String)
@@ -327,10 +343,9 @@ class VisionRTC: NSObject {
         }
       }
       if !shouldEmit {
-        if policy == "latest-wins" {
-          stateQueue.sync(flags: .barrier) {
-            self.droppedFramesByTrack[trackId] = (self.droppedFramesByTrack[trackId] ?? 0) + 1
-          }
+        // Only count drops for drop-late policy (null-cpu mode doesn't use backpressure policies)
+        stateQueue.async(flags: .barrier) {
+          self.droppedFramesByTrack[trackId] = (self.droppedFramesByTrack[trackId] ?? 0) + 1
         }
         continue
       }
@@ -419,25 +434,28 @@ extension VisionRTC {
   fileprivate func deliverExternalFrame(sourceId: String, pixelBuffer: CVPixelBuffer, timestampNs: Int64) {
     var trackIds: [String] = []
     stateQueue.sync { trackIds = Array(self.sourceToTrackIds[sourceId] ?? []) }
-    if trackIds.isEmpty { return }
+    if trackIds.isEmpty { 
+      print("VisionRTC: Warning - No tracks found for source \(sourceId)")
+      return 
+    }
     for trackId in trackIds {
       var isPaused = false
-      stateQueue.sync { isPaused = self.pausedForReconfig.contains(trackId) }
-      if isPaused { continue }
       var stOpt: TrackState?
       var srcOpt: RTCVideoSource?
       var capOpt: RTCVideoCapturer?
       stateQueue.sync {
+        isPaused = self.pausedForReconfig.contains(trackId)
         stOpt = self.trackStates[trackId]
         srcOpt = self.sources[trackId]
         capOpt = self.capturers[trackId]
       }
+      if isPaused { continue }
       guard let st = stOpt, let src = srcOpt else { continue }
       let nowSec = CACurrentMediaTime()
       let intervalSec = 1.0 / Double(max(1, st.fps))
 
       // Update produced counters and per-second rollups
-      stateQueue.sync(flags: .barrier) {
+      stateQueue.async(flags: .barrier) {
         self.producedThisSecond[trackId] = (self.producedThisSecond[trackId] ?? 0) + 1
         if self.lastSecondWallClock[trackId] == nil {
           self.lastSecondWallClock[trackId] = nowSec
@@ -456,7 +474,7 @@ extension VisionRTC {
       var shouldEmit = false
       var bufferToSend: CVPixelBuffer = pixelBuffer
 
-      stateQueue.sync(flags: .barrier) {
+      stateQueue.sync {
         let last = self.lastSent[trackId] ?? 0
         if policy == "latest-wins" {
           // Always keep the latest; emit only on cadence. Count suppressed frames as drops.
@@ -494,13 +512,20 @@ extension VisionRTC {
       let rtcBuf = RTCCVPixelBuffer(pixelBuffer: bufferToSend)
       let ts: Int64 = (policy == "latest-wins" ? (stateQueue.sync { self.latestBufferByTrack[trackId]?.tsNs } ?? timestampNs) : timestampNs)
       let frame = RTCVideoFrame(buffer: rtcBuf, rotation: ._0, timeStampNs: ts)
+      
+      guard frame.buffer.width > 0 && frame.buffer.height > 0 else {
+        print("VisionRTC: Warning - Invalid frame dimensions for track \(trackId)")
+        continue
+      }
+      
+      // Deliver frame to WebRTC
       if let cap = capOpt {
         src.capturer(cap, didCapture: frame)
       } else {
         src.capturer(RTCVideoCapturer(delegate: src), didCapture: frame)
       }
 
-      stateQueue.sync(flags: .barrier) {
+      stateQueue.async(flags: .barrier) {
         self.deliveredThisSecond[trackId] = (self.deliveredThisSecond[trackId] ?? 0) + 1
         let lastSecond = self.lastSecondWallClock[trackId] ?? nowSec
         if nowSec - lastSecond >= 1.0 {
@@ -525,6 +550,38 @@ extension VisionRTC {
       dropped = self.droppedFramesByTrack[trackId as String] ?? 0
     }
     resolver(["producedFps": produced, "deliveredFps": delivered, "droppedFrames": dropped])
+  }
+
+  @objc(deliverFrame:pixelBuffer:timestampNs:resolver:rejecter:)
+  func deliverFrame(sourceId: NSString, pixelBuffer: CVPixelBuffer, timestampNs: NSNumber,
+                    resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) {
+    guard !sourceId.isEqual(to: "") else {
+      rejecter("INVALID_SOURCE_ID", "Source ID cannot be empty", nil)
+      return
+    }
+    
+    let width = CVPixelBufferGetWidth(pixelBuffer)
+    let height = CVPixelBufferGetHeight(pixelBuffer)
+    guard width > 0 && height > 0 else {
+      rejecter("INVALID_FRAME_SIZE", "Frame dimensions must be positive", nil)
+      return
+    }
+    
+    let pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
+    let supportedFormats: [OSType] = [
+      kCVPixelFormatType_32BGRA,
+      kCVPixelFormatType_32ARGB,
+      kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+      kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
+    ]
+    
+    guard supportedFormats.contains(pixelFormat) else {
+      rejecter("UNSUPPORTED_PIXEL_FORMAT", "Pixel format \(pixelFormat) not supported by WebRTC", nil)
+      return
+    }
+    
+    deliverExternalFrame(sourceId: sourceId as String, pixelBuffer: pixelBuffer, timestampNs: timestampNs.int64Value)
+    resolver(NSNull())
   }
   fileprivate func startGpuGenerator(for trackId: String) {
     var stOpt: TrackState?

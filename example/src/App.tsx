@@ -12,12 +12,14 @@ import {
   getStats,
   VisionRTCView,
 } from 'react-native-vision-rtc';
+import TestFramework from './test-framework';
 
 export default function App() {
   const insets = useSafeAreaInsets();
   const cameraRef = React.useRef<Camera>(null);
   const device = useCameraDevice('back');
   const [trackId, setTrackId] = React.useState<string | null>(null);
+  const [showTests, setShowTests] = React.useState(false);
   const [sourceId, setSourceId] = React.useState<string | null>(null);
   const [stats, setStats] = React.useState<{
     producedFps: number;
@@ -146,6 +148,10 @@ export default function App() {
     }
   };
 
+  if (showTests) {
+    return <TestFramework onBack={() => setShowTests(false)} />;
+  }
+
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
       <View style={styles.preview}>
@@ -197,6 +203,9 @@ export default function App() {
             title={`BP: ${backpressure}`}
             onPress={onToggleBackpressure}
           />
+        </View>
+        <View style={styles.btn}>
+          <Button title="🧪 Tests" onPress={() => setShowTests(true)} />
         </View>
       </View>
     </SafeAreaView>

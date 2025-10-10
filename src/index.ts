@@ -74,6 +74,17 @@ export function disposeTrack(trackId: string): Promise<void> {
   return NativeVisionRTC.disposeTrack(trackId);
 }
 
+export async function deliverFrame(
+  sourceId: string,
+  pixelBuffer: unknown,
+  timestampNs: number
+): Promise<void> {
+  if (!NativeVisionRTC.deliverFrame) {
+    throw new Error('VisionRTC native module missing deliverFrame support');
+  }
+  return NativeVisionRTC.deliverFrame(sourceId, pixelBuffer, timestampNs);
+}
+
 export async function getStats(
   _trackId?: string
 ): Promise<TrackStats | undefined> {

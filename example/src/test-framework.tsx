@@ -1,4 +1,4 @@
-import React, {useState, useRef, useCallback, useEffect} from 'react';
+import * as React from 'react';
 import {View, Text, Button, StyleSheet, ScrollView, Alert} from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {
@@ -38,23 +38,27 @@ type TestFrameworkProps = {
 };
 
 export default function TestFramework({onBack}: TestFrameworkProps = {}) {
-  const [testSuites, setTestSuites] = useState<TestSuite[]>([]);
-  const [isRunning, setIsRunning] = useState(false);
-  const cameraRef = useRef<Camera>(null);
+  const [testSuites, setTestSuites] = React.useState<TestSuite[]>([]);
+  const [isRunning, setIsRunning] = React.useState(false);
+  const cameraRef = React.useRef<Camera>(null);
   const device = useCameraDevice('back');
 
   const insets = useSafeAreaInsets();
 
   // Test state
-  const [currentSourceId, setCurrentSourceId] = useState<string | null>(null);
-  const [currentTrackId, setCurrentTrackId] = useState<string | null>(null);
+  const [currentSourceId, setCurrentSourceId] = React.useState<string | null>(
+    null
+  );
+  const [currentTrackId, setCurrentTrackId] = React.useState<string | null>(
+    null
+  );
 
   // Frame processor for testing actual frame delivery
   const frameProcessor = useFrameProcessor((frame) => {
     processFrame(frame);
   }, []);
 
-  const updateTestResult = useCallback(
+  const updateTestResult = React.useCallback(
     (suiteName: string, testName: string, result: Partial<TestResult>) => {
       setTestSuites((prev) =>
         prev.map((suite) =>
@@ -72,7 +76,7 @@ export default function TestFramework({onBack}: TestFrameworkProps = {}) {
     []
   );
 
-  const runTest = useCallback(
+  const runTest = React.useCallback(
     async (
       suiteName: string,
       testName: string,
@@ -102,7 +106,7 @@ export default function TestFramework({onBack}: TestFrameworkProps = {}) {
   );
 
   // Initialize test suites
-  useEffect(() => {
+  React.useEffect(() => {
     setTestSuites([
       {
         name: 'Core Integration',
@@ -142,7 +146,7 @@ export default function TestFramework({onBack}: TestFrameworkProps = {}) {
   }, []);
 
   // Test implementations
-  const testCreateVisionCameraSource = useCallback(async () => {
+  const testCreateVisionCameraSource = React.useCallback(async () => {
     const node = findNodeHandle(cameraRef.current);
     if (!node) throw new Error('Camera ref not available');
 
@@ -152,7 +156,7 @@ export default function TestFramework({onBack}: TestFrameworkProps = {}) {
     setCurrentSourceId(result.__nativeSourceId);
   }, []);
 
-  const testCreateWebRTCTrack = useCallback(async () => {
+  const testCreateWebRTCTrack = React.useCallback(async () => {
     if (!currentSourceId) throw new Error('No source ID available');
 
     const result = await createWebRTCTrack(
@@ -169,7 +173,7 @@ export default function TestFramework({onBack}: TestFrameworkProps = {}) {
     setCurrentTrackId(result.trackId);
   }, [currentSourceId]);
 
-  const testSetupFrameProcessor = useCallback(async () => {
+  const testSetupFrameProcessor = React.useCallback(async () => {
     if (!currentSourceId) throw new Error('No source ID available');
 
     setSourceId(currentSourceId);
@@ -183,7 +187,7 @@ export default function TestFramework({onBack}: TestFrameworkProps = {}) {
     console.log('✅ Frame processor setup complete');
   }, [currentSourceId]);
 
-  const testFrameDelivery = useCallback(async () => {
+  const testFrameDelivery = React.useCallback(async () => {
     if (!currentSourceId || !currentTrackId) {
       throw new Error('Source ID and Track ID required');
     }
@@ -219,7 +223,7 @@ export default function TestFramework({onBack}: TestFrameworkProps = {}) {
     );
   }, [currentSourceId, currentTrackId]);
 
-  const testDisposeResources = useCallback(async () => {
+  const testDisposeResources = React.useCallback(async () => {
     // Clear frame processor first
     clearSourceId();
 
@@ -233,7 +237,7 @@ export default function TestFramework({onBack}: TestFrameworkProps = {}) {
     }
   }, [currentTrackId, currentSourceId]);
 
-  const testMultipleTrackCreationDisposal = useCallback(async () => {
+  const testMultipleTrackCreationDisposal = React.useCallback(async () => {
     if (!currentSourceId) throw new Error('No source ID available');
 
     const trackIds: string[] = [];
@@ -253,7 +257,7 @@ export default function TestFramework({onBack}: TestFrameworkProps = {}) {
     }
   }, [currentSourceId]);
 
-  const testFrameDeliveryLatency = useCallback(async () => {
+  const testFrameDeliveryLatency = React.useCallback(async () => {
     if (!currentTrackId) throw new Error('No track ID available');
 
     const startTime = Date.now();
@@ -267,7 +271,7 @@ export default function TestFramework({onBack}: TestFrameworkProps = {}) {
     console.log(`Stats query latency: ${latency}ms`, stats);
   }, [currentTrackId]);
 
-  const testInvalidSourceId = useCallback(async () => {
+  const testInvalidSourceId = React.useCallback(async () => {
     const NativeVisionRTC =
       require('react-native-vision-rtc/src/NativeVisionRtc').default;
 
@@ -286,7 +290,7 @@ export default function TestFramework({onBack}: TestFrameworkProps = {}) {
     }
   }, []);
 
-  const runCoreIntegrationTests = useCallback(async () => {
+  const runCoreIntegrationTests = React.useCallback(async () => {
     await runTest(
       'Core Integration',
       'Create Vision Camera Source',
@@ -317,7 +321,7 @@ export default function TestFramework({onBack}: TestFrameworkProps = {}) {
     testDisposeResources,
   ]);
 
-  const runMemoryManagementTests = useCallback(async () => {
+  const runMemoryManagementTests = React.useCallback(async () => {
     // Recreate source for memory tests
     await runTest(
       'Core Integration',
@@ -342,7 +346,7 @@ export default function TestFramework({onBack}: TestFrameworkProps = {}) {
     testDisposeResources,
   ]);
 
-  const runPerformanceTests = useCallback(async () => {
+  const runPerformanceTests = React.useCallback(async () => {
     // Recreate resources for performance tests
     await runTest(
       'Core Integration',
@@ -375,11 +379,11 @@ export default function TestFramework({onBack}: TestFrameworkProps = {}) {
     testDisposeResources,
   ]);
 
-  const runErrorHandlingTests = useCallback(async () => {
+  const runErrorHandlingTests = React.useCallback(async () => {
     await runTest('Error Handling', 'Invalid Source ID', testInvalidSourceId);
   }, [runTest, testInvalidSourceId]);
 
-  const runAllTests = useCallback(async () => {
+  const runAllTests = React.useCallback(async () => {
     if (isRunning) return;
 
     setIsRunning(true);

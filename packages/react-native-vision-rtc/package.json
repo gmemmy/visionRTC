@@ -33,7 +33,7 @@
   "scripts": {
     "build": "yarn clean && yarn build:js && yarn build:types",
     "build:js": "bob build",
-    "build:types": "tsc -p tsconfig.build.json",
+    "build:types": "tsc -b tsconfig.build.json",
     "clean": "del-cli android/build ios/build lib",
     "prepare": "yarn build"
   },

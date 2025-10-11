@@ -1,18 +1,18 @@
-import {TurboModuleRegistry, type TurboModule} from "react-native";
+import {TurboModuleRegistry, type TurboModule} from 'react-native';
 
 type VisionCameraSourceShape = {__nativeSourceId: string};
 type NativePixelSourceShape =
-  | {platform: "ios"; pixelBufferRef: unknown}
+  | {platform: 'ios'; pixelBufferRef: unknown}
   | {
-      platform: "android";
+      platform: 'android';
       hardwareBufferRef?: unknown;
       surfaceTextureId?: number;
     };
 type TrackOptionsShape = {
   fps?: number;
   resolution?: {width: number; height: number};
-  backpressure?: "drop-late" | "latest-wins" | "throttle";
-  mode?: "null-gpu" | "null-cpu" | "external";
+  backpressure?: 'drop-late' | 'latest-wins' | 'throttle';
+  mode?: 'null-gpu' | 'null-cpu' | 'external';
 };
 
 export type Spec = TurboModule & {
@@ -21,7 +21,7 @@ export type Spec = TurboModule & {
   ) => Promise<VisionCameraSourceShape>;
   readonly updateSource: (
     sourceId: string,
-    opts: {position?: "front" | "back"; torch?: boolean; maxFps?: number}
+    opts: {position?: 'front' | 'back'; torch?: boolean; maxFps?: number}
   ) => Promise<void>;
   readonly disposeSource: (sourceId: string) => Promise<void>;
   readonly createTrack: (
@@ -57,4 +57,4 @@ export type Spec = TurboModule & {
   ) => Promise<void>;
 };
 
-export default TurboModuleRegistry.getEnforcing<Spec>("VisionRTC");
+export default TurboModuleRegistry.getEnforcing<Spec>('VisionRTC');

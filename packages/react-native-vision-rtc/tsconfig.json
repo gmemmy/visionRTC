@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "noEmit": true,
+    "types": []
+  },
+  "references": [
+    {"path": "../core"},
+    {"path": "../source-visioncamera"}
+  ],
+  "include": ["src/**/*"],
+  "exclude": ["dist", "node_modules"]
+}

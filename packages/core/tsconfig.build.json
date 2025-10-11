@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "outDir": "lib/typescript",
+    "rootDir": "src",
+    "composite": true,
+    "tsBuildInfoFile": "./lib/.tsbuildinfo/core.build.tsbuildinfo"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["lib", "android/build", "ios/build", "node_modules"]
+}

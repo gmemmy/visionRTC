@@ -1,4 +1,4 @@
-import NativeVisionRTC from './NativeVisionRtc';
+import NativeVisionRTC from "./NativeVisionRtc";
 import type {
   TrackOptions,
   VisionRTCTrack,
@@ -8,8 +8,8 @@ import type {
   Capabilities,
   VisionRtcError,
   TrackStats,
-} from './types';
-import VisionRTCView from './vision-rtc-view';
+} from "./types";
+import VisionRTCView from "./vision-rtc-view";
 
 export type {
   TrackOptions,
@@ -32,7 +32,7 @@ export async function createVisionCameraSource(
 
 export function updateSource(
   sourceId: string,
-  opts: {position?: 'front' | 'back'; torch?: boolean; maxFps?: number}
+  opts: {position?: "front" | "back"; torch?: boolean; maxFps?: number}
 ): Promise<void> {
   return NativeVisionRTC.updateSource(sourceId, opts);
 }
@@ -80,7 +80,7 @@ export async function deliverFrame(
   timestampNs: number
 ): Promise<void> {
   if (!NativeVisionRTC.deliverFrame) {
-    throw new Error('VisionRTC native module missing deliverFrame support');
+    throw new Error("VisionRTC native module missing deliverFrame support");
   }
   return NativeVisionRTC.deliverFrame(sourceId, pixelBuffer, timestampNs);
 }
@@ -108,8 +108,8 @@ export async function getStats(
 function detectExpoGo(): boolean {
   try {
     // Optional dependency; only if project uses Expo
-    const Constants = require('expo-constants').default;
-    return Constants?.appOwnership === 'expo';
+    const Constants = require("expo-constants").default;
+    return Constants?.appOwnership === "expo";
   } catch {
     return false;
   }
@@ -117,7 +117,7 @@ function detectExpoGo(): boolean {
 
 function hasVisionCamera(): boolean {
   try {
-    const vc = require('react-native-vision-camera');
+    const vc = require("react-native-vision-camera");
     return !!vc;
   } catch {
     return false;
@@ -140,15 +140,15 @@ export function assertSupportedOrThrow(): void {
   const caps = getCapabilities();
   if (caps.expoGo) {
     const err: VisionRtcError = {
-      code: 'ERR_EXPO_GO',
-      message: 'Expo Go is not supported. Use Expo Dev Client.',
+      code: "ERR_EXPO_GO",
+      message: "Expo Go is not supported. Use Expo Dev Client.",
     };
     throw err;
   }
   if (!caps.webrtc) {
     const err: VisionRtcError = {
-      code: 'ERR_NATIVE_MODULE_UNAVAILABLE',
-      message: 'VisionRTC native module not available.',
+      code: "ERR_NATIVE_MODULE_UNAVAILABLE",
+      message: "VisionRTC native module not available.",
     };
     throw err;
   }

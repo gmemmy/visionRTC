@@ -1,0 +1,20 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ESNext",
+    "allowJs": false,
+    "strict": true,
+    "noEmit": true,
+    "types": ["react", "react-native"],
+    "paths": {
+      "react-native-vision-rtc": [
+        "../packages/react-native-vision-rtc/lib/typescript/module/index.d.ts"
+      ]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "lib"]
+}

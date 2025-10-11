@@ -1,18 +1,22 @@
 {
-  "name": "visionrtc-monorepo",
+  "name": "@visionrtc/core",
   "version": "0.1.0",
   "description": "React Native library for streaming Vision Camera, ARKit, OpenCV, or ML frames over WebRTC.",
   "main": "./lib/commonjs/index.js",
-  "react-native": "./lib/module/index.js",
   "module": "./lib/module/index.js",
-  "types": "./lib/typescript/src/index.d.ts",
+  "react-native": "./lib/module/index.js",
+  "types": "./lib/typescript/module/index.d.ts",
   "exports": {
     ".": {
-      "types": "./lib/typescript/src/index.d.ts",
-      "source": "./src/index.ts",
-      "react-native": "./src/index.ts",
-      "import": "./lib/module/index.js",
-      "require": "./lib/commonjs/index.js",
+      "react-native": "./lib/module/index.js",
+      "import": {
+        "types": "./lib/typescript/module/index.d.ts",
+        "default": "./lib/module/index.js"
+      },
+      "require": {
+        "types": "./lib/typescript/commonjs/index.d.ts",
+        "default": "./lib/commonjs/index.js"
+      },
       "default": "./lib/module/index.js"
     },
     "./package.json": "./package.json"
@@ -37,14 +41,15 @@
     "!**/.*"
   ],
   "scripts": {
-    "example": "yarn workspace react-native-vision-rtc-example",
-    "test": "jest",
-    "typecheck": "tsc",
-    "lint": "eslint \"**/*.{js,ts,tsx}\"",
-    "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
-    "prepare": "bob build",
+    "build": "yarn clean && yarn build:js && yarn build:types",
+    "build:js": "bob build",
+    "build:types": "tsc -p tsconfig.build.json",
+    "clean": "del-cli android/build ios/build lib",
+    "lint": "eslint --config ../../eslint.config.mjs \"**/*.{js,ts,tsx}\"",
+    "prepare": "yarn build",
     "prepublishOnly": "yarn prepare",
-    "release": "release-it --only-version"
+    "test": "jest",
+    "typecheck": "tsc --build"
   },
   "keywords": [
     "react-native",
@@ -94,10 +99,6 @@
     "react": "*",
     "react-native": "*"
   },
-  "workspaces": [
-    "packages/*",
-    "example"
-  ],
   "packageManager": "yarn@3.6.1",
   "jest": {
     "preset": "react-native",
@@ -132,7 +133,7 @@
   },
   "prettier": {
     "quoteProps": "consistent",
-    "singleQuote": false,
+    "singleQuote": true,
     "bracketSpacing": false,
     "tabWidth": 2,
     "trailingComma": "es5",

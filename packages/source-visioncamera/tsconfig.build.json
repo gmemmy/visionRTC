@@ -5,11 +5,15 @@
     "declaration": true,
     "declarationMap": true,
     "emitDeclarationOnly": true,
-    "rootDir": "src",
+    "rootDir": ".",
     "outDir": "lib/typescript",
     "composite": true,
-    "tsBuildInfoFile": "./lib/.tsbuildinfo/source-visioncamera.build.tsbuildinfo"
+    "tsBuildInfoFile": "./lib/.tsbuildinfo/source-visioncamera.build.tsbuildinfo",
+    "paths": {
+      "@visionrtc/core": ["../core/src/index.ts"],
+      "@visionrtc/core/*": ["../core/src/*"]
+    }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "register.ts"],
   "exclude": ["lib", "node_modules"]
 }

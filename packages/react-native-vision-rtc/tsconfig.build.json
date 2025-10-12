@@ -7,7 +7,8 @@
     "outDir": "lib/typescript",
     "rootDir": "src",
     "composite": true,
-    "tsBuildInfoFile": "./lib/.tsbuildinfo/react-native-vision-rtc.build.tsbuildinfo"
+    "tsBuildInfoFile": "./lib/.tsbuildinfo/react-native-vision-rtc.build.tsbuildinfo",
+    "paths": {}
   },
   "references": [
     {"path": "../core/tsconfig.build.json"},

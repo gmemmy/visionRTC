@@ -12,6 +12,27 @@
     "lib": ["ESNext"],
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "react-native-vision-rtc": [
+        "packages/react-native-vision-rtc/src/index.ts"
+      ],
+      "react-native-vision-rtc/*": [
+        "packages/react-native-vision-rtc/src/*"
+      ],
+      "@visionrtc/core": [
+        "packages/core/src/index.ts"
+      ],
+      "@visionrtc/core/*": [
+        "packages/core/src/*"
+      ],
+      "@visionrtc/source-visioncamera": [
+        "packages/source-visioncamera/src/index.ts"
+      ],
+      "@visionrtc/source-visioncamera/*": [
+        "packages/source-visioncamera/src/*"
+      ]
+    },
     "newLine": "lf",
     "noEmit": true,
     "noFallthroughCasesInSwitch": true,

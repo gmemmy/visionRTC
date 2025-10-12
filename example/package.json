@@ -16,7 +16,8 @@
     "react": "19.1.0",
     "react-native": "0.81.1",
     "react-native-safe-area-context": "^5.6.1",
-    "react-native-vision-camera": "^4.7.2"
+    "react-native-vision-camera": "^4.7.2",
+    "react-native-vision-rtc": "workspace:*"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

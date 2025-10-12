@@ -10580,11 +10580,12 @@ __metadata:
     react-native-monorepo-config: ^0.1.9
     react-native-safe-area-context: ^5.6.1
     react-native-vision-camera: ^4.7.2
+    react-native-vision-rtc: "workspace:*"
     typescript: ^5.9.3
   languageName: unknown
   linkType: soft
 
-"react-native-vision-rtc@workspace:packages/react-native-vision-rtc":
+"react-native-vision-rtc@workspace:*, react-native-vision-rtc@workspace:packages/react-native-vision-rtc":
   version: 0.0.0-use.local
   resolution: "react-native-vision-rtc@workspace:packages/react-native-vision-rtc"
   dependencies:

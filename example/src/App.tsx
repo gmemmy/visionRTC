@@ -1,7 +1,7 @@
-import * as React from 'react';
-import {Button, Text, StyleSheet, View, findNodeHandle} from 'react-native';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
-import {Camera, useCameraDevice} from 'react-native-vision-camera';
+import * as React from "react";
+import {Button, Text, StyleSheet, View, findNodeHandle} from "react-native";
+import {SafeAreaView, useSafeAreaInsets} from "react-native-safe-area-context";
+import {Camera, useCameraDevice} from "react-native-vision-camera";
 import {
   createVisionCameraSource,
   createWebRTCTrack,
@@ -11,13 +11,13 @@ import {
   disposeTrack,
   getStats,
   VisionRTCView,
-} from 'react-native-vision-rtc';
-import TestFramework from './test-framework';
+} from "react-native-vision-rtc";
+import TestFramework from "./test-framework";
 
 export default function App() {
   const insets = useSafeAreaInsets();
   const cameraRef = React.useRef<Camera>(null);
-  const device = useCameraDevice('back');
+  const device = useCameraDevice("back");
   const [trackId, setTrackId] = React.useState<string | null>(null);
   const [showTests, setShowTests] = React.useState(false);
   const [sourceId, setSourceId] = React.useState<string | null>(null);
@@ -28,16 +28,16 @@ export default function App() {
   } | null>(null);
   const [creating, setCreating] = React.useState(false);
   const [torch, setTorch] = React.useState(false);
-  const [facing, setFacing] = React.useState<'front' | 'back'>('back');
+  const [facing, setFacing] = React.useState<"front" | "back">("back");
   const [backpressure, setBackpressure] = React.useState<
-    'drop-late' | 'latest-wins' | 'throttle'
-  >('drop-late');
+    "drop-late" | "latest-wins" | "throttle"
+  >("drop-late");
 
   const ensurePermissions = React.useCallback(async () => {
     const cam = await Camera.getCameraPermissionStatus();
-    if (cam !== 'granted') {
+    if (cam !== "granted") {
       const res = await Camera.requestCameraPermission();
-      if (res !== 'granted') throw new Error('Camera permission not granted');
+      if (res !== "granted") throw new Error("Camera permission not granted");
     }
   }, []);
 
@@ -48,7 +48,7 @@ export default function App() {
     try {
       await ensurePermissions();
       const node = findNodeHandle(cameraRef.current);
-      if (!node) throw new Error('Camera view not ready');
+      if (!node) throw new Error("Camera view not ready");
       const {__nativeSourceId} = await createVisionCameraSource(node);
       setSourceId(__nativeSourceId);
       const created = await createWebRTCTrack(
@@ -67,7 +67,7 @@ export default function App() {
           await disposeTrack(newId);
         } catch {}
       }
-      console.error('Failed to start WebRTC track', err);
+      console.error("Failed to start WebRTC track", err);
     } finally {
       setCreating(false);
     }
@@ -79,7 +79,7 @@ export default function App() {
       if (trackId) await disposeTrack(trackId);
       if (sourceId) await disposeSource(sourceId);
     } catch (e) {
-      console.warn('Failed to dispose track', e);
+      console.warn("Failed to dispose track", e);
     } finally {
       setTrackId(null);
       setSourceId(null);
@@ -113,7 +113,7 @@ export default function App() {
 
   const onFlip = async () => {
     if (!sourceId) return;
-    const next = facing === 'back' ? 'front' : 'back';
+    const next = facing === "back" ? "front" : "back";
     setFacing(next);
     // Turning torch off when flipping avoids devices without torch (e.g., front)
     setTorch(false);
@@ -129,19 +129,19 @@ export default function App() {
 
   const onFps = async (fps: number) => {
     if (!trackId) return;
-    console.log('onFps', fps);
+    console.log("onFps", fps);
     await updateTrack(trackId, {fps});
   };
 
   const onToggleBackpressure = async () => {
-    const order: Array<'drop-late' | 'latest-wins' | 'throttle'> = [
-      'drop-late',
-      'latest-wins',
-      'throttle',
+    const order: Array<"drop-late" | "latest-wins" | "throttle"> = [
+      "drop-late",
+      "latest-wins",
+      "throttle",
     ];
     const currentIndex = order.indexOf(backpressure);
     const idx = currentIndex === -1 ? 0 : (currentIndex + 1) % order.length;
-    const next = order[idx] as 'drop-late' | 'latest-wins' | 'throttle';
+    const next = order[idx] as "drop-late" | "latest-wins" | "throttle";
     setBackpressure(next);
     if (trackId) {
       await updateTrack(trackId, {backpressure: next});
@@ -153,7 +153,7 @@ export default function App() {
   }
 
   return (
-    <SafeAreaView edges={['top']} style={styles.container}>
+    <SafeAreaView edges={["top"]} style={styles.container}>
       <View style={styles.preview}>
         {device && (
           <Camera
@@ -161,12 +161,12 @@ export default function App() {
             style={StyleSheet.absoluteFill}
             device={device}
             isActive={true}
-            torch={torch && device?.hasTorch ? 'on' : 'off'}
+            torch={torch && device?.hasTorch ? "on" : "off"}
           />
         )}
-        <VisionRTCView trackId={trackId ?? ''}>
+        <VisionRTCView trackId={trackId ?? ""}>
           <Text style={[styles.trackId, {marginTop: insets.top + 20}]}>
-            {trackId ?? 'No track id'}
+            {trackId ?? "No track id"}
           </Text>
         </VisionRTCView>
         <View style={styles.hud}>
@@ -187,7 +187,7 @@ export default function App() {
         </View>
         <View style={styles.btn}>
           <Button
-            title={torch ? 'Torch Off' : 'Torch On'}
+            title={torch ? "Torch Off" : "Torch On"}
             onPress={onTorch}
             disabled={!device?.hasTorch}
           />
@@ -215,44 +215,44 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffff',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#ffff",
+    justifyContent: "center",
+    alignItems: "center",
   },
   controls: {
     padding: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    flexWrap: "wrap",
   },
   btn: {minWidth: 120, margin: 6},
   preview: {
     flex: 1,
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
   },
   hud: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 30,
     right: 0,
     left: 0,
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.4)",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
   },
   hudText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 14,
   },
   trackId: {
-    color: 'gray',
+    color: "gray",
     fontSize: 14,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });

@@ -1,19 +1,39 @@
 {
   "compilerOptions": {
-    "rootDir": ".",
-    "paths": {
-      "react-native-vision-rtc": ["./src/index"]
-    },
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
+    "composite": false,
     "customConditions": ["react-native", "react-native-strict-api"],
-    "types": ["react", "react-native", "jest"],
+    "declaration": false,
+    "emitDeclarationOnly": false,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "jsx": "react-jsx",
     "lib": ["ESNext"],
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "react-native-vision-rtc": [
+        "packages/react-native-vision-rtc/src/index.ts"
+      ],
+      "react-native-vision-rtc/*": [
+        "packages/react-native-vision-rtc/src/*"
+      ],
+      "@visionrtc/core": [
+        "packages/core/src/index.ts"
+      ],
+      "@visionrtc/core/*": [
+        "packages/core/src/*"
+      ],
+      "@visionrtc/source-visioncamera": [
+        "packages/source-visioncamera/src/index.ts"
+      ],
+      "@visionrtc/source-visioncamera/*": [
+        "packages/source-visioncamera/src/*"
+      ]
+    },
+    "newLine": "lf",
     "noEmit": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
@@ -26,6 +46,9 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "ESNext",
-    "verbatimModuleSyntax": true,
-  }
+    "tsBuildInfoFile": "./node_modules/.cache/tsbuildinfo/root.tsbuildinfo",
+    "useDefineForClassFields": true,
+    "verbatimModuleSyntax": true
+  },
+  "exclude": ["node_modules", "dist", "lib"]
 }

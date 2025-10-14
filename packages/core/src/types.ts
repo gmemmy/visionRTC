@@ -5,26 +5,26 @@ export type TrackOptions = {
   resolution?: Resolution;
   backpressure?: Backpressure;
   bitrate?: number;
-  colorSpace?: "auto" | "sRGB" | "BT.709" | "BT.2020";
-  orientationMode?: "auto" | "fixed-0" | "fixed-90" | "fixed-180" | "fixed-270";
-  mode?: "null-gpu" | "null-cpu" | "external";
+  colorSpace?: 'auto' | 'sRGB' | 'BT.709' | 'BT.2020';
+  orientationMode?: 'auto' | 'fixed-0' | 'fixed-90' | 'fixed-180' | 'fixed-270';
+  mode?: 'null-gpu' | 'null-cpu' | 'external';
 };
 
 export type VisionCameraSource = {__nativeSourceId: string};
 
 type NativePixelSourceIOS = {
-  platform: "ios";
+  platform: 'ios';
   pixelBufferRef: unknown;
 };
 
 type NativePixelSourceAndroidHardwareBuffer = {
-  platform: "android";
+  platform: 'android';
   hardwareBufferRef: unknown;
   surfaceTextureId?: never;
 };
 
 type NativePixelSourceAndroidSurfaceTexture = {
-  platform: "android";
+  platform: 'android';
   surfaceTextureId: number;
   hardwareBufferRef?: never;
 };
@@ -38,21 +38,24 @@ export type VisionRTCTrack = {
   trackId: string;
 };
 
-export type Backpressure = "drop-late" | "latest-wins" | "throttle";
+export type Backpressure = 'drop-late' | 'latest-wins' | 'throttle';
 
 export type Capabilities = {
   webrtc: boolean;
-  visionCamera: boolean;
+  sources: Record<string, boolean>;
+  processors: Record<string, boolean>;
+  visionCamera?: boolean;
   arkit: boolean;
   hwEncoder: {h264: boolean; vp8: boolean};
   expoGo: boolean;
 };
 
 export type VisionRtcErrorCode =
-  | "ERR_EXPO_GO"
-  | "ERR_MISSING_VISION_CAMERA"
-  | "ERR_UNSUPPORTED_PLATFORM"
-  | "ERR_NATIVE_MODULE_UNAVAILABLE";
+  | 'ERR_EXPO_GO'
+  | 'ERR_MISSING_VISION_CAMERA'
+  | 'ERR_UNSUPPORTED_PLATFORM'
+  | 'ERR_NATIVE_MODULE_UNAVAILABLE'
+  | 'E_PLUGIN_MISSING';
 
 export type VisionRtcError = {
   code: VisionRtcErrorCode;

@@ -1,0 +1,74 @@
+{
+  "name": "react-native-vision-rtc",
+  "version": "0.1.0",
+  "description": "Public entry point for VisionRTC that re-exports @visionrtc/core and auto-registers available plugins.",
+  "main": "./lib/commonjs/index.js",
+  "module": "./lib/module/index.js",
+  "react-native": "./src/index.ts",
+  "types": "./lib/typescript/module/index.d.ts",
+  "exports": {
+    ".": {
+      "react-native": "./lib/module/index.js",
+      "import": {
+        "types": "./lib/typescript/module/index.d.ts",
+        "default": "./lib/module/index.js"
+      },
+      "require": {
+        "types": "./lib/typescript/commonjs/index.d.ts",
+        "default": "./lib/commonjs/index.js"
+      },
+      "default": "./lib/module/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "src",
+    "android",
+    "ios",
+    "cpp",
+    "*.podspec",
+    "react-native.config.js"
+  ],
+  "scripts": {
+    "build": "yarn clean && yarn build:js && yarn build:types",
+    "build:js": "bob build",
+    "build:types": "tsc -b tsconfig.build.json",
+    "clean": "del-cli android/build ios/build lib",
+    "prepare": "yarn build"
+  },
+  "dependencies": {
+    "@visionrtc/core": "workspace:*",
+    "@visionrtc/source-visioncamera": "workspace:*"
+  },
+  "devDependencies": {
+    "del-cli": "^6.0.0",
+    "react-native-builder-bob": "^0.40.13",
+    "typescript": "^5.9.2"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*"
+  },
+  "react-native-builder-bob": {
+    "source": "src",
+    "output": "lib",
+    "targets": [
+      [
+        "commonjs"
+      ],
+      [
+        "module",
+        {
+          "esm": true
+        }
+      ],
+      [
+        "typescript",
+        {
+          "project": "tsconfig.build.json"
+        }
+      ]
+    ]
+  }
+}

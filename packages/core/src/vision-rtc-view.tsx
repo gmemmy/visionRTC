@@ -1,11 +1,11 @@
-import type {ReactNode} from "react";
+import type {ReactNode} from 'react';
 import {
   requireNativeComponent,
   StyleSheet,
   View,
   type ViewStyle,
   type StyleProp,
-} from "react-native";
+} from 'react-native';
 
 type Props = {
   trackId?: string | null;
@@ -16,13 +16,13 @@ type Props = {
 const NativeView = requireNativeComponent<{
   trackId: string;
   style?: StyleProp<ViewStyle>;
-}>("VisionRTCView");
+}>('VisionRTCView');
 
 export default function VisionRTCView({trackId, style, children}: Props) {
   return (
     <View style={[styles.container, style]}>
       <NativeView
-        trackId={trackId ?? ""}
+        trackId={trackId ?? ''}
         style={StyleSheet.absoluteFillObject}
       />
       {children}
@@ -33,7 +33,7 @@ export default function VisionRTCView({trackId, style, children}: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    position: "absolute",
+    position: 'absolute',
     top: 0,
     left: 0,
     right: 0,

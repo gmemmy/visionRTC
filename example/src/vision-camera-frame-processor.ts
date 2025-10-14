@@ -1,5 +1,5 @@
-import type {Frame} from 'react-native-vision-camera';
-import {deliverFrame} from 'react-native-vision-rtc';
+import type {Frame} from "react-native-vision-camera";
+import {deliverFrame} from "react-native-vision-rtc";
 
 let sourceId: string | null = null;
 let frameCount = 0;
@@ -15,10 +15,10 @@ export function clearSourceId() {
 }
 
 export function processFrame(frame: Frame): void {
-  'worklet';
+  "worklet";
 
   if (!sourceId) {
-    console.log('VisionCamera: No source ID set, skipping frame delivery');
+    console.log("VisionCamera: No source ID set, skipping frame delivery");
     return;
   }
 
@@ -37,12 +37,12 @@ export function processFrame(frame: Frame): void {
     if (pixelBufferRef) {
       deliverFrame(sourceId, pixelBufferRef, timestampNs).catch(
         (error: unknown) => {
-          console.warn('VisionCamera: Failed to deliver frame:', error);
+          console.warn("VisionCamera: Failed to deliver frame:", error);
         }
       );
     }
   } catch (error) {
-    console.warn('VisionCamera: Error processing frame:', error);
+    console.warn("VisionCamera: Error processing frame:", error);
   }
 }
 
